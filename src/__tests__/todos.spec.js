@@ -1,9 +1,39 @@
 const request = require('supertest');
 const { validate } = require('uuid');
 
-const app = require('../');
+const app = require('..');
 
 describe('Todos', () => {
+  it('should be able to delete a todo', async () => {
+    const userResponse = await request(app)
+      .post('/users')
+      .send({
+        name: 'John Doe',
+        username: 'user5'
+      });
+
+    const todoDate = new Date();
+
+    const todo1Response = await request(app)
+      .post('/todos')
+      .send({
+        title: 'test todo -> should be able to delete a todo',
+        deadline: todoDate
+      })
+      .set('username', userResponse.body[0].username);
+
+    await request(app)
+      .delete(`/todos/${todo1Response.body.id}`)
+      .set('username', userResponse.body[0].username)
+      .expect(204);
+
+    const listResponse = await request(app)
+      .get('/todos')
+      .set('username', userResponse.body[0].username);
+
+    expect(listResponse.body).toEqual([]);
+  });
+
   it("should be able to list all user's todo", async () => {
     const userResponse = await request(app)
       .post('/users')
@@ -17,14 +47,14 @@ describe('Todos', () => {
     const todoResponse = await request(app)
       .post('/todos')
       .send({
-        title: 'test todo',
+        title: 'test todo -> should be able to list all user',
         deadline: todoDate
       })
-      .set('username', userResponse.body.username);
+      .set('username', userResponse.body[0].username);
 
     const response = await request(app)
       .get('/todos')
-      .set('username', userResponse.body.username);
+      .set('username', userResponse.body[0].username);
 
     expect(response.body).toEqual(
       expect.arrayContaining([
@@ -46,19 +76,21 @@ describe('Todos', () => {
     const response = await request(app)
       .post('/todos')
       .send({
-        title: 'test todo',
-        deadline: todoDate
+        title: 'test todo -> should be able to create a new todo',
+        deadline: todoDate,
       })
-      .set('username', userResponse.body.username)
+      .set('username', userResponse.body[0].username)
       .expect(201);
 
-    expect(response.body).toMatchObject({
-      title: 'test todo',
-      deadline: todoDate.toISOString(),
-      done: false
-    });
-    expect(validate(response.body.id)).toBe(true);
-    expect(response.body.created_at).toBeTruthy();
+      expect(validate(response.body.id)).toBe(true);
+      expect(response.body.created_at).toBeTruthy();
+      
+      expect(response.body).toMatchObject({
+        title: 'test todo -> should be able to create a new todo',
+        deadline: todoDate.toISOString(),
+        done: false
+      });
+      
   });
 
   it('should be able to update a todo', async () => {
@@ -74,21 +106,21 @@ describe('Todos', () => {
     const todoResponse = await request(app)
       .post('/todos')
       .send({
-        title: 'test todo',
+        title: 'test todo 1 -> should be able to update a todo',
         deadline: todoDate
       })
-      .set('username', userResponse.body.username);
+      .set('username', userResponse.body[0].username);
 
     const response = await request(app)
       .put(`/todos/${todoResponse.body.id}`)
       .send({
-        title: 'update title',
+        title: 'update title 2 -> should be able to update a todo',
         deadline: todoDate
       })
-      .set('username', userResponse.body.username);
+      .set('username', userResponse.body[0].username);
 
     expect(response.body).toMatchObject({
-      title: 'update title',
+      title: 'update title 2 -> should be able to update a todo',
       deadline: todoDate.toISOString(),
       done: false
     });
@@ -107,10 +139,10 @@ describe('Todos', () => {
     const response = await request(app)
       .put('/todos/invalid-todo-id')
       .send({
-        title: 'update title',
+        title: 'update title -> should not be able to update a non existing todo',
         deadline: todoDate
       })
-      .set('username', userResponse.body.username)
+      .set('username', userResponse.body[0].username)
       .expect(404);
 
     expect(response.body.error).toBeTruthy();
@@ -129,14 +161,15 @@ describe('Todos', () => {
     const todoResponse = await request(app)
       .post('/todos')
       .send({
-        title: 'test todo',
+        title: 'test todo -> should be able to mark a todo as done',
         deadline: todoDate
       })
-      .set('username', userResponse.body.username);
+      .set('username', userResponse.body[0].username);
 
-    const response = await request(app)
+      
+      const response = await request(app)
       .patch(`/todos/${todoResponse.body.id}/done`)
-      .set('username', userResponse.body.username);
+      .set('username', userResponse.body[0].username);
 
     expect(response.body).toMatchObject({
       ...todoResponse.body,
@@ -154,40 +187,10 @@ describe('Todos', () => {
 
     const response = await request(app)
       .patch('/todos/invalid-todo-id/done')
-      .set('username', userResponse.body.username)
+      .set('username', userResponse.body[0].username)
       .expect(404);
 
     expect(response.body.error).toBeTruthy();
-  });
-
-  it('should be able to delete a todo', async () => {
-    const userResponse = await request(app)
-      .post('/users')
-      .send({
-        name: 'John Doe',
-        username: 'user5'
-      });
-
-    const todoDate = new Date();
-
-    const todo1Response = await request(app)
-      .post('/todos')
-      .send({
-        title: 'test todo',
-        deadline: todoDate
-      })
-      .set('username', userResponse.body.username);
-
-    await request(app)
-      .delete(`/todos/${todo1Response.body.id}`)
-      .set('username', userResponse.body.username)
-      .expect(204);
-
-    const listResponse = await request(app)
-      .get('/todos')
-      .set('username', userResponse.body.username);
-
-    expect(listResponse.body).toEqual([]);
   });
 
   it('should not be able to delete a non existing todo', async () => {
@@ -200,7 +203,7 @@ describe('Todos', () => {
 
     const response = await request(app)
       .delete('/todos/invalid-todo-id')
-      .set('username', userResponse.body.username)
+      .set('username', userResponse.body[0].username)
       .expect(404);
 
     expect(response.body.error).toBeTruthy();
